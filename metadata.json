@@ -1,0 +1,12 @@
+{
+  "name": "اتقان - نظام المحاسبة السحابي المتكامل",
+  "description": "نظام محاسبة وإدارة شركات احترافي (ERP) يدعم تعدد الشركات، المخازن، الرواتب، ونقاط البيع بتصميم عصري.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "Accounting",
+    "Multi-tenant SaaS",
+    "Inventory Management",
+    "HR & Payroll",
+    "POS"
+  ]
+}
