@@ -103,12 +103,12 @@ const Sidebar = ({ activeTab, setActiveTab, role }: any) => {
 
 const Header = () => (
   <header className="h-20 flex items-center justify-between px-8 bg-white/5 backdrop-blur-md sticky top-0 z-30 border-b border-white/10">
-    <h1 className="text-2xl font-bold">نظرة عامة على الشركة</h1>
+    <h1 className="text-2xl font-bold">مركز التحكم - العراق</h1>
 
     <div className="flex items-center gap-6">
       <div className="hidden md:flex glass-card px-4 py-2 items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span className="text-sm font-medium">فرع الرياض الرئيسي</span>
+        <span className="text-sm font-medium">فرع المنصور - بغداد</span>
       </div>
 
       <div className="flex items-center gap-3">
