@@ -1,0 +1,1030 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_OWNER
+  COMPANY_ADMIN
+  COMPANY_USER
+}
+
+enum PlanInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  SUSPENDED
+  PAST_DUE
+  CANCELED
+}
+
+model Tenant {
+  id            String             @id @default(cuid())
+  name          String
+  slug          String             @unique
+  logoUrl       String?
+  taxNumber     String?
+  phone         String?
+  address       String?
+  currency      String             @default("IQD")
+  status        String             @default("ACTIVE") // ACTIVE, SUSPENDED, ARCHIVED
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  users         User[]
+  roles         Role[]
+  subscription  Subscription?
+  auditLogs     AuditLog[]
+  
+  // Modules
+  accounts      Account[]
+  customers     Customer[]
+  suppliers     Supplier[]
+  leads         Lead[]
+  opportunities Opportunity[]
+  products      Product[]
+  productCategories ProductCategory[]
+  invoices      Invoice[]
+  purchaseInvoices PurchaseInvoice[]
+  expenses      Expense[]
+  payments      Payment[]
+  journalEntries JournalEntry[]
+  projects      Project[]
+  employees     Employee[]
+  branches      Branch[]
+  warehouses    Warehouse[]
+  units         MeasurementUnit[]
+  taxTypes      TaxType[]
+  fiscalYears   FiscalYear[]
+  departments   Department[]
+  jobTitles     JobTitle[]
+  companySettings CompanySetting[]
+
+  // Accounting expansion
+  costCenters   CostCenter[]
+  expenseCategories ExpenseCategory[]
+  paymentMethods PaymentMethod[]
+
+  // CRM lookups
+  leadSources   LeadSource[]
+  opportunityStages OpportunityStage[]
+
+  // Project expansion
+  projectStages ProjectStage[]
+  projectTasks  ProjectTask[]
+  
+  // Manufacturing expansion
+  workOrders    WorkOrder[]
+  qualityChecks QualityCheck[]
+  
+  // Contacts expansion
+  customerGroups CustomerGroup[]
+  supplierGroups SupplierGroup[]
+  
+  // Manufacturing
+  boms          BillOfMaterials[]
+  workCenters   WorkCenter[]
+  
+  // Assets
+  assetCategories AssetCategory[]
+  assets          Asset[]
+  
+  // Fleet
+  vehicles        Vehicle[]
+  
+  // POS
+  posSessions     POSSession[]
+  
+  // Inventory
+  inventoryAdjustments InventoryAdjustment[]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          UserRole  @default(COMPANY_USER)
+  roleId        String?
+  customRole    Role?     @relation(fields: [roleId], references: [id])
+  avatar        String?
+  isActive      Boolean   @default(true)
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  auditLogs     AuditLog[]
+}
+
+model Plan {
+  id                String         @id @default(cuid())
+  name              String         @unique // Starter, Professional, Enterprise
+  description       String?
+  monthlyPrice      Float
+  yearlyPrice       Float
+  maxUsers          Int
+  maxBranches       Int
+  maxWarehouses     Int
+  invoiceLimit      Int
+  features          Json           // JSON list of enabled modules
+  isActive          Boolean        @default(true)
+  
+  subscriptions     Subscription[]
+}
+
+model Subscription {
+  id            String             @id @default(cuid())
+  tenantId      String             @unique
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  planId        String
+  plan          Plan               @relation(fields: [planId], references: [id])
+  status        SubscriptionStatus @default(TRIALING)
+  interval      PlanInterval       @default(MONTHLY)
+  startDate     DateTime           @default(now())
+  endDate       DateTime
+  trialEndsAt   DateTime?
+  cancelAtPeriodEnd Boolean        @default(false)
+  updatedAt     DateTime           @updatedAt
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String
+  entityType    String
+  entityId      String?
+  oldValues     Json?
+  newValues     Json?
+  ipAddress     String?
+  userAgent     String?
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  tenantId      String?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model CostCenter {
+  id            String   @id @default(cuid())
+  nameAr        String
+  code          String?
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ExpenseCategory {
+  id            String   @id @default(cuid())
+  nameAr        String
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  expenses      Expense[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  nameAr        String
+  code          String?  // CASH, BANK, etc
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LeadSource {
+  id            String   @id @default(cuid())
+  nameAr        String
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model OpportunityStage {
+  id            String   @id @default(cuid())
+  nameAr        String
+  probability   Int      @default(0)
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CustomerGroup {
+  id            String   @id @default(cuid())
+  nameAr        String
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SupplierGroup {
+  id            String   @id @default(cuid())
+  nameAr        String
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ProjectStage {
+  id            String   @id @default(cuid())
+  nameAr        String
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  projects      Project[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ProjectTask {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id])
+  title         String
+  description   String?
+  status        String   @default("TODO")
+  priority      String   @default("MEDIUM")
+  dueDate       DateTime?
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model WorkOrder {
+  id                String          @id @default(cuid())
+  number            String
+  billOfMaterialsId String
+  bom               BillOfMaterials @relation("BOMWorkOrders", fields: [billOfMaterialsId], references: [id])
+  quantity          Float
+  status            String          @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  tenantId          String
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model QualityCheck {
+  id            String   @id @default(cuid())
+  entityType    String   // Product, WorkOrder, etc
+  entityId      String
+  result        String   // PASS, FAIL
+  notes         String?
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Accounting
+model Account {
+  id            String   @id @default(cuid())
+  code          String
+  name          String
+  type          AccountType
+  balance       Float    @default(0)
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  parentAccountId String?
+  parentAccount   Account?  @relation("AccountTree", fields: [parentAccountId], references: [id])
+  subAccounts     Account[] @relation("AccountTree")
+
+  journalLines  JournalEntryLine[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, code])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  reference   String?
+  description String?
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  lines       JournalEntryLine[]
+  createdAt   DateTime @default(now())
+}
+
+model JournalEntryLine {
+  id              String       @id @default(cuid())
+  journalEntryId  String
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId       String
+  account         Account      @relation(fields: [accountId], references: [id])
+  debit           Float        @default(0)
+  credit          Float        @default(0)
+  tenantId        String
+}
+
+// CRM
+model Lead {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name          String
+  email         String?
+  phone         String?
+  source        String?  // Social Media, Referral, etc.
+  status        String   @default("NEW") // NEW, CONTACTED, QUALIFIED, LOST
+  notes         String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  assignedToId  String?
+}
+
+model Opportunity {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  title         String
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  stage         String   @default("PROSPECTING") // PROSPECTING, QUALIFICATION, PROPOSAL, NEGOTIATION, CLOSED_WON, CLOSED_LOST
+  expectedValue Float    @default(0)
+  probability   Int      @default(0) // 0-100
+  closeDate     DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  assignedToId  String?
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  group         String?  @default("DEFAULT")
+  balance       Float    @default(0)
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  invoices      Invoice[]
+  payments      Payment[]
+  opportunities Opportunity[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  group         String?  @default("DEFAULT")
+  balance       Float    @default(0)
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  purchaseInvoices PurchaseInvoice[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+// Manufacturing
+model BillOfMaterials {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  productId     String
+  product       Product  @relation("ProductBOM", fields: [productId], references: [id])
+  quantity      Float    @default(1)
+  
+  components    BOMComponent[]
+  workOrders    WorkOrder[] @relation("BOMWorkOrders")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model BOMComponent {
+  id                String          @id @default(cuid())
+  billOfMaterialsId String
+  billOfMaterials   BillOfMaterials @relation(fields: [billOfMaterialsId], references: [id])
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id])
+  quantity          Float
+}
+
+model WorkCenter {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name          String
+  code          String?
+  capacity      Float?
+  costPerHour   Float    @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+// Assets
+model AssetCategory {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr        String
+  depreciationMethod String @default("STRAIGHT_LINE")
+  usefulLifeYears Int    @default(5)
+  
+  assets        Asset[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model Asset {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name          String
+  categoryId    String
+  category      AssetCategory @relation(fields: [categoryId], references: [id])
+  purchaseDate  DateTime
+  purchaseValue Float
+  salvageValue  Float    @default(0)
+  status        String   @default("ACTIVE") // ACTIVE, DISPOSED, MAINTENANCE
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+// Fleet
+model Vehicle {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  model         String
+  licensePlate  String   @unique
+  driverId      String?
+  status        String   @default("ACTIVE")
+  
+  fuelLogs      FuelLog[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model FuelLog {
+  id            String   @id @default(cuid())
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id])
+  date          DateTime @default(now())
+  liters        Float
+  amount        Float
+  odometer      Float?
+  
+  createdAt     DateTime @default(now())
+}
+
+// POS
+model POSSession {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  openedById    String
+  openedAt      DateTime @default(now())
+  closedAt      DateTime?
+  openingBalance Float   @default(0)
+  closingBalance Float?
+  status        String   @default("OPEN") // OPEN, CLOSED
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Inventory Adjustments
+model InventoryAdjustment {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  warehouseId   String
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+  reason        String?
+  status        String   @default("DRAFT") // DRAFT, COMPLETED
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Inventory
+model ProductCategory {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr      String
+  nameEn      String?
+  code        String?
+  description String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+
+  products    Product[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  nameEn        String?
+  sku           String?
+  barcode       String?
+  type          String   @default("CONSUMABLE") // STORABLE, SERVICE, CONSUMABLE
+  price         Float
+  cost          Float    @default(0)
+  stock         Float    @default(0)
+  unitId        String?
+  unitRel       MeasurementUnit? @relation(fields: [unitId], references: [id])
+  categoryId    String?
+  category      ProductCategory? @relation(fields: [categoryId], references: [id])
+  warehouseId   String?
+  warehouse     Warehouse?       @relation("WarehouseProducts", fields: [warehouseId], references: [id])
+  taxTypeId     String?
+  taxType       TaxType?         @relation(fields: [taxTypeId], references: [id])
+  
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  invoiceItems  InvoiceItem[]
+  purchaseItems PurchaseInvoiceItem[]
+  movements     InventoryMovement[]
+  
+  billOfMaterials BillOfMaterials[] @relation("ProductBOM")
+  usedInBOMs      BOMComponent[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model Role {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  name          String
+  description   String?
+  permissions   Permission[]
+  users         User[]
+}
+
+model Permission {
+  id            String   @id @default(cuid())
+  name          String   @unique // e.g., "view_dashboard", "manage_users"
+  roles         Role[]
+}
+
+// Sales
+model Invoice {
+  id            String   @id @default(cuid())
+  number        String
+  date          DateTime @default(now())
+  dueDate       DateTime?
+  totalAmount   Float
+  taxAmount     Float    @default(0)
+  discount      Float    @default(0)
+  paidAmount    Float    @default(0)
+  status        InvoiceStatus @default(UNPAID)
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Float
+  price     Float
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  VOID
+}
+
+// Purchases
+model PurchaseInvoice {
+  id            String   @id @default(cuid())
+  number        String
+  date          DateTime @default(now())
+  totalAmount   Float
+  paidAmount    Float    @default(0)
+  status        String   @default("UNPAID")
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  items         PurchaseInvoiceItem[]
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model PurchaseInvoiceItem {
+  id              String   @id @default(cuid())
+  purchaseId      String
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseId], references: [id])
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  quantity        Float
+  price           Float
+}
+
+// Payments
+model Payment {
+  id          String   @id @default(cuid())
+  amount      Float
+  date        DateTime @default(now())
+  method      String   // CASH, BANK, CHECK
+  type        PaymentType
+  invoiceId   String?
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+enum PaymentType {
+  INBOUND
+  OUTBOUND
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  description   String
+  amount        Float
+  date          DateTime @default(now())
+  categoryId    String?
+  categoryRel   ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  category      String   // Keeping legacy field for safety or generic use
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+// Organization
+// Organization
+model Branch {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr      String
+  nameEn      String?
+  code        String?
+  address     String?
+  phone       String?
+  managerName String?
+  isMain      Boolean  @default(false)
+  isActive    Boolean  @default(true)
+
+  employees   Employee[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+}
+
+model Warehouse {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr      String
+  nameEn      String?
+  code        String?
+  location    String?
+  description String?
+  isActive    Boolean  @default(true)
+
+  products    Product[] @relation("WarehouseProducts")
+  movements   InventoryMovement[]
+  inventoryAdjustments InventoryAdjustment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+}
+
+model FiscalYear {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("OPEN") // OPEN, CLOSED
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  periods     AccountingPeriod[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AccountingPeriod {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("OPEN") // OPEN, CLOSED
+  fiscalYearId String
+  fiscalYear  FiscalYear @relation(fields: [fiscalYearId], references: [id])
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InventoryMovement {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Float
+  type        String   // IN, OUT, TRANSFER, ADJUSTMENT
+  reference   String?
+  date        DateTime @default(now())
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr      String
+  nameEn      String?
+  code        String?
+  description String?
+  isActive    Boolean  @default(true)
+
+  employees   Employee[]
+  jobTitles   JobTitle[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+}
+
+model JobTitle {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  
+  nameAr        String
+  nameEn        String?
+  code          String?
+  description   String?
+  isActive      Boolean  @default(true)
+
+  employees     Employee[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  createdById   String?
+  updatedById   String?
+}
+
+model Employee {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  jobTitleId    String?
+  jobTitle      JobTitle? @relation(fields: [jobTitleId], references: [id])
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  salary        Float    @default(0)
+  status        String   @default("ACTIVE") // ACTIVE, ON_LEAVE, TERMINATED
+  joinDate      DateTime?
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  attendance    Attendance[]
+  leaves        Leave[]
+  payrollItems  PayrollItem[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      String   @default("PRESENT") // PRESENT, ABSENT, LATE
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Leave {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  type        String   // ANNUAL, SICK, UNPAID
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PayrollRun {
+  id          String   @id @default(cuid())
+  name        String
+  periodStart DateTime
+  periodEnd   DateTime
+  status      String   @default("DRAFT") // DRAFT, PROCESSED, PAID
+  items       PayrollItem[]
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PayrollItem {
+  id            String   @id @default(cuid())
+  payrollRunId  String
+  payrollRun    PayrollRun @relation(fields: [payrollRunId], references: [id])
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  basicSalary   Float
+  allowances    Float    @default(0)
+  deductions    Float    @default(0)
+  netSalary     Float
+  tenantId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  title       String
+  message     String
+  type        String   // INFO, WARNING, ERROR, SUCCESS
+  isRead      Boolean  @default(false)
+  userId      String?
+  tenantId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FileMetadata {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileType    String
+  fileSize    Int
+  storagePath String
+  entityType  String?  // Invoice, Product, etc.
+  entityId    String?
+  tenantId    String
+  uploadedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CompanySetting {
+  id        String   @id @default(cuid())
+  key       String
+  value     String
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, key])
+}
+
+model Project {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  startDate     DateTime?
+  endDate       DateTime?
+  budget        Float    @default(0)
+  status        String   @default("PLANNED")
+  stageId       String?
+  stage         ProjectStage? @relation(fields: [stageId], references: [id])
+  tasks         ProjectTask[]
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model MeasurementUnit {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr      String
+  nameEn      String?
+  symbol      String?
+  code        String?
+  description String?
+  isActive    Boolean  @default(true)
+
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+}
+
+model TaxType {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  nameAr      String
+  nameEn      String?
+  code        String?
+  rate        Float
+  description String?
+  isActive    Boolean  @default(true)
+
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+}
+

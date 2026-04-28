@@ -1,10 +1,19 @@
 {
-  "name": "اتقان ERP",
-  "short_name": "اتقان",
-  "description": "نظام المحاسبة وإدارة الشركات المتكامل",
+  "name": "أفق ERP - النظام المتكامل",
+  "short_name": "أفق ERP",
+  "description": "النظام السحابي المتكامل للمحاسبة وإدارة الشركات للمؤسسات الطموحة في العراق.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#020617",
-  "theme_color": "#4f46e5",
-  "icons": []
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
